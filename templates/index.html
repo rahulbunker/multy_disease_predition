@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>E-Doctor | AI Health Diagnostics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Vars ─────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --teal:    #0ea5a0;
+  --teal2:   #06b6d4;
+  --navy:    #0b1f3a;
+  --navy2:   #102a4c;
+  --white:   #f0f8ff;
+  --glass:   rgba(11,31,58,.72);
+  --border:  rgba(14,165,160,.25);
+  --red:     #f43f5e;
+  --green:   #10b981;
+  --yellow:  #f59e0b;
+  --radius:  16px;
+  --shadow:  0 8px 40px rgba(0,0,0,.45);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--navy);
+  color: var(--white);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Animated SVG Background ─────────────────── */
+#bg-canvas {
+  position: fixed; inset: 0; z-index: 0;
+  background: linear-gradient(135deg, #050f1e 0%, #0b1f3a 50%, #071828 100%);
+}
+.bg-orb {
+  position: absolute; border-radius: 50%;
+  filter: blur(80px); opacity: .18; animation: drift 18s ease-in-out infinite;
+}
+.bg-orb:nth-child(1) { width:600px;height:600px; background:var(--teal);  top:-100px;left:-150px; animation-delay:0s; }
+.bg-orb:nth-child(2) { width:400px;height:400px; background:#6366f1; bottom:-80px;right:-100px; animation-delay:-6s; }
+.bg-orb:nth-child(3) { width:300px;height:300px; background:var(--teal2); top:40%;left:55%; animation-delay:-12s; }
+
+@keyframes drift {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%      { transform: translate(40px,-30px) scale(1.08); }
+  66%      { transform: translate(-30px,25px) scale(.94); }
+}
+
+/* ECG line animation */
+.ecg-strip {
+  position: fixed; bottom: 0; left: 0; width: 100%; height: 80px;
+  z-index: 0; opacity: .08; overflow: hidden;
+}
+.ecg-strip svg { width: 200%; animation: ecgScroll 6s linear infinite; }
+@keyframes ecgScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* Floating cross icons */
+.float-icon {
+  position: fixed; font-size: 1.4rem; opacity: .06;
+  animation: floatUp 14s linear infinite;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(100vh) rotate(0deg); opacity:0; }
+  10%  { opacity:.06; }
+  90%  { opacity:.06; }
+  100% { transform: translateY(-10vh) rotate(360deg); opacity:0; }
+}
+
+/* ── Layout ───────────────────────────────────── */
+.wrapper { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 80px; }
+
+/* ── Header ───────────────────────────────────── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 28px 0 20px;
+}
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg,var(--teal),var(--teal2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem; box-shadow: 0 0 24px rgba(14,165,160,.5);
+}
+.logo-text { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; }
+.logo-text span { color: var(--teal2); }
+.badge {
+  font-size: .7rem; background: rgba(14,165,160,.15);
+  border: 1px solid var(--border); color: var(--teal2);
+  padding: 4px 10px; border-radius: 999px; font-weight: 500; letter-spacing:.5px;
+}
+
+/* ── Hero ─────────────────────────────────────── */
+.hero { text-align: center; padding: 60px 0 48px; }
+.hero-tag {
+  display: inline-block; font-size: .75rem; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--teal2); background: rgba(14,165,160,.1); border: 1px solid var(--border);
+  padding: 6px 16px; border-radius: 999px; margin-bottom: 20px;
+}
+.hero h1 {
+  font-family: 'Syne', sans-serif; font-size: clamp(2rem,5vw,3.4rem);
+  font-weight: 800; line-height: 1.15; letter-spacing: -1px;
+  margin-bottom: 16px;
+}
+.hero h1 em { font-style: normal; color: var(--teal2); }
+.hero p { font-size: 1.05rem; color: rgba(240,248,255,.6); max-width: 520px; margin: 0 auto 36px; line-height: 1.7; }
+
+/* stats row */
+.stats { display: flex; justify-content: center; gap: 48px; flex-wrap: wrap; }
+.stat-item { text-align: center; }
+.stat-num { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; color:var(--teal2); }
+.stat-lbl { font-size:.75rem; color:rgba(240,248,255,.45); letter-spacing:.5px; }
+
+/* ── Disease Tabs ─────────────────────────────── */
+.tabs { display:flex; gap:10px; justify-content:center; margin-bottom:32px; flex-wrap:wrap; }
+.tab-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 24px; border-radius: 999px;
+  border: 1.5px solid var(--border); background: var(--glass);
+  color: rgba(240,248,255,.6); font-family:'DM Sans',sans-serif;
+  font-size: .92rem; font-weight: 500; cursor: pointer;
+  transition: all .25s; backdrop-filter: blur(12px);
+}
+.tab-btn:hover { border-color:var(--teal); color:var(--white); }
+.tab-btn.active {
+  background: linear-gradient(135deg,var(--teal),var(--teal2));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 0 28px rgba(14,165,160,.45);
+}
+.tab-btn .dot { width:8px;height:8px;border-radius:50%; }
+.tab-btn[data-tab="diabetes"] .dot  { background:#f59e0b; }
+.tab-btn[data-tab="heart"]    .dot  { background:#f43f5e; }
+.tab-btn[data-tab="parkinsons"] .dot { background:#a78bfa; }
+
+/* ── Form Card ────────────────────────────────── */
+.card {
+  background: var(--glass); backdrop-filter: blur(20px);
+  border: 1px solid var(--border); border-radius: 24px;
+  padding: 40px; box-shadow: var(--shadow);
+  animation: fadeIn .4s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+.card-header { display:flex; align-items:center; gap:14px; margin-bottom:32px; }
+.card-icon {
+  width:52px; height:52px; border-radius:14px; display:flex;
+  align-items:center; justify-content:center; font-size:1.5rem;
+}
+.icon-diabetes  { background:rgba(245,158,11,.15); box-shadow:0 0 20px rgba(245,158,11,.2); }
+.icon-heart     { background:rgba(244,63,94,.15);  box-shadow:0 0 20px rgba(244,63,94,.2); }
+.icon-parkinsons{ background:rgba(167,139,250,.15);box-shadow:0 0 20px rgba(167,139,250,.2); }
+
+.card-title { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:700; }
+.card-subtitle { font-size:.82rem; color:rgba(240,248,255,.45); margin-top:2px; }
+
+/* Grid inputs */
+.fields { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:18px; }
+
+.field { display:flex; flex-direction:column; gap:6px; }
+.field label {
+  font-size:.78rem; font-weight:500; text-transform:uppercase;
+  letter-spacing:.6px; color:rgba(240,248,255,.5);
+}
+.field input, .field select {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(14,165,160,.2);
+  border-radius: 10px; padding: 11px 14px; color: var(--white);
+  font-size: .95rem; font-family:'DM Sans',sans-serif;
+  outline:none; transition: border-color .2s, box-shadow .2s;
+  appearance: none;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 3px rgba(14,165,160,.15);
+}
+.field select option { background: var(--navy2); color: var(--white); }
+
+/* ── Submit Button ────────────────────────────── */
+.predict-btn {
+  margin-top:28px; width:100%; padding:16px;
+  background: linear-gradient(135deg,var(--teal) 0%,var(--teal2) 100%);
+  color:#fff; border:none; border-radius:12px;
+  font-family:'Syne',sans-serif; font-size:1rem; font-weight:700;
+  letter-spacing:.5px; cursor:pointer; position:relative; overflow:hidden;
+  transition: box-shadow .25s, transform .15s;
+}
+.predict-btn:hover { box-shadow:0 0 36px rgba(14,165,160,.55); transform:translateY(-1px); }
+.predict-btn:active { transform:translateY(0); }
+.predict-btn .btn-shine {
+  position:absolute; inset:0; background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.15) 50%,transparent 70%);
+  transform:translateX(-100%); transition:transform .5s;
+}
+.predict-btn:hover .btn-shine { transform:translateX(100%); }
+
+/* ── Result Box ───────────────────────────────── */
+.result-box {
+  margin-top: 24px; padding: 20px 24px;
+  border-radius: 14px; display:none;
+  animation: popIn .35s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes popIn { from{opacity:0;transform:scale(.9)} to{opacity:1;transform:scale(1)} }
+
+.result-box.negative { background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.3); }
+.result-box.positive  { background:rgba(244,63,94,.12);  border:1px solid rgba(244,63,94,.3); }
+
+.result-inner { display:flex; align-items:center; gap:16px; }
+.result-emoji { font-size:2.2rem; }
+.result-label { font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:700; }
+.result-sub   { font-size:.82rem; color:rgba(240,248,255,.5); margin-top:3px; }
+
+/* loading spinner */
+.spinner {
+  width:20px;height:20px; border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff; border-radius:50%;
+  animation:spin .7s linear infinite; display:none;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── Disclaimer ───────────────────────────────── */
+.disclaimer {
+  text-align:center; margin-top:36px; font-size:.78rem;
+  color:rgba(240,248,255,.3); line-height:1.7;
+}
+
+/* ── Responsive ───────────────────────────────── */
+@media(max-width:600px) {
+  .card { padding: 24px 18px; }
+  .stats { gap:28px; }
+  header { flex-direction:column; gap:12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Animated Background -->
+<div id="bg-canvas">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+
+<!-- ECG strip -->
+<div class="ecg-strip">
+  <svg viewBox="0 0 1200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <polyline points="0,40 80,40 100,10 120,70 140,20 160,60 180,40 280,40 300,10 320,70 340,20 360,60 380,40 480,40 500,10 520,70 540,20 560,60 580,40 680,40 700,10 720,70 740,20 760,60 780,40 880,40 900,10 920,70 940,20 960,60 980,40 1080,40 1100,10 1120,70 1140,20 1160,60 1180,40 1200,40"
+      stroke="#0ea5a0" stroke-width="1.5" stroke-linejoin="round"/>
+    <polyline points="0,40 80,40 100,10 120,70 140,20 160,60 180,40 280,40 300,10 320,70 340,20 360,60 380,40 480,40 500,10 520,70 540,20 560,60 580,40 680,40 700,10 720,70 740,20 760,60 780,40 880,40 900,10 920,70 940,20 960,60 980,40 1080,40 1100,10 1120,70 1140,20 1160,60 1180,40 1200,40"
+      stroke="#0ea5a0" stroke-width="1.5" stroke-linejoin="round" transform="translate(600,0)"/>
+  </svg>
+</div>
+
+<!-- Floating icons -->
+<script>
+  const icons = ['✚','🩺','💊','🧬','🫀','🫁','⚕️'];
+  icons.forEach((ic,i) => {
+    const el = document.createElement('div');
+    el.className = 'float-icon';
+    el.textContent = ic;
+    el.style.left = (10 + i*13) + '%';
+    el.style.animationDelay = (i*2) + 's';
+    el.style.animationDuration = (12+i*2) + 's';
+    document.body.appendChild(el);
+  });
+</script>
+
+<div class="wrapper">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🩺</div>
+      <div class="logo-text">E-<span>Doctor</span></div>
+    </div>
+    <div class="badge">AI DIAGNOSTICS v2.0</div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-tag">Powered by Machine Learning</div>
+    <h1>Smart Health <em>Predictions</em><br>At Your Fingertips</h1>
+    <p>Enter your clinical parameters and get instant AI-powered predictions for Diabetes, Heart Disease, and Parkinson's.</p>
+    <div class="stats">
+      <div class="stat-item"><div class="stat-num">3</div><div class="stat-lbl">DISEASES</div></div>
+      <div class="stat-item"><div class="stat-num">ML</div><div class="stat-lbl">POWERED</div></div>
+      <div class="stat-item"><div class="stat-num">∞</div><div class="stat-lbl">PREDICTIONS</div></div>
+    </div>
+  </section>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="diabetes">
+      <span class="dot"></span> 🩸 Diabetes
+    </button>
+    <button class="tab-btn" data-tab="heart">
+      <span class="dot"></span> ❤️ Heart Disease
+    </button>
+    <button class="tab-btn" data-tab="parkinsons">
+      <span class="dot"></span> 🧠 Parkinson's
+    </button>
+  </div>
+
+  <!-- ===== DIABETES FORM ===== -->
+  <div class="card" id="tab-diabetes">
+    <div class="card-header">
+      <div class="card-icon icon-diabetes">🩸</div>
+      <div>
+        <div class="card-title">Diabetes Prediction</div>
+        <div class="card-subtitle">8 clinical parameters required</div>
+      </div>
+    </div>
+    <div class="fields">
+      <div class="field"><label>Pregnancies</label><input type="number" id="d-pregnancies" placeholder="0" min="0"/></div>
+      <div class="field"><label>Glucose (mg/dL)</label><input type="number" id="d-glucose" placeholder="120" step="0.1"/></div>
+      <div class="field"><label>Blood Pressure</label><input type="number" id="d-bp" placeholder="70" step="0.1"/></div>
+      <div class="field"><label>Skin Thickness (mm)</label><input type="number" id="d-skin" placeholder="20" step="0.1"/></div>
+      <div class="field"><label>Insulin (IU/mL)</label><input type="number" id="d-insulin" placeholder="80" step="0.1"/></div>
+      <div class="field"><label>BMI</label><input type="number" id="d-bmi" placeholder="25.0" step="0.1"/></div>
+      <div class="field"><label>DPF (Diabetes Pedigree)</label><input type="number" id="d-dpf" placeholder="0.47" step="0.01"/></div>
+      <div class="field"><label>Age</label><input type="number" id="d-age" placeholder="33" min="1"/></div>
+    </div>
+    <button class="predict-btn" onclick="predict('diabetes')">
+      <span class="btn-shine"></span>
+      <span class="btn-text">🔍 Predict Diabetes Risk</span>
+      <span class="spinner" id="spinner-diabetes"></span>
+    </button>
+    <div class="result-box" id="result-diabetes">
+      <div class="result-inner">
+        <div class="result-emoji" id="remoji-diabetes"></div>
+        <div>
+          <div class="result-label" id="rlabel-diabetes"></div>
+          <div class="result-sub" id="rsub-diabetes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HEART FORM ===== -->
+  <div class="card" id="tab-heart" style="display:none">
+    <div class="card-header">
+      <div class="card-icon icon-heart">❤️</div>
+      <div>
+        <div class="card-title">Heart Disease Prediction</div>
+        <div class="card-subtitle">13 clinical parameters required</div>
+      </div>
+    </div>
+    <div class="fields">
+      <div class="field"><label>Age</label><input type="number" id="h-age" placeholder="50"/></div>
+      <div class="field"><label>Sex</label>
+        <select id="h-sex"><option value="1">Male (1)</option><option value="0">Female (0)</option></select>
+      </div>
+      <div class="field"><label>Chest Pain Type</label>
+        <select id="h-cp">
+          <option value="0">0 – Typical Angina</option>
+          <option value="1">1 – Atypical Angina</option>
+          <option value="2">2 – Non-Anginal</option>
+          <option value="3">3 – Asymptomatic</option>
+        </select>
+      </div>
+      <div class="field"><label>Resting BP (mmHg)</label><input type="number" id="h-trestbps" placeholder="120" step="0.1"/></div>
+      <div class="field"><label>Cholesterol (mg/dL)</label><input type="number" id="h-chol" placeholder="200" step="0.1"/></div>
+      <div class="field"><label>Fasting Blood Sugar &gt;120</label>
+        <select id="h-fbs"><option value="0">No (0)</option><option value="1">Yes (1)</option></select>
+      </div>
+      <div class="field"><label>Rest ECG</label>
+        <select id="h-restecg">
+          <option value="0">0 – Normal</option>
+          <option value="1">1 – ST-T Abnormality</option>
+          <option value="2">2 – LV Hypertrophy</option>
+        </select>
+      </div>
+      <div class="field"><label>Max Heart Rate</label><input type="number" id="h-thalach" placeholder="150" step="0.1"/></div>
+      <div class="field"><label>Exercise Angina</label>
+        <select id="h-exang"><option value="0">No (0)</option><option value="1">Yes (1)</option></select>
+      </div>
+      <div class="field"><label>Oldpeak (ST depression)</label><input type="number" id="h-oldpeak" placeholder="1.0" step="0.1"/></div>
+      <div class="field"><label>Slope</label>
+        <select id="h-slope">
+          <option value="0">0 – Upsloping</option>
+          <option value="1">1 – Flat</option>
+          <option value="2">2 – Downsloping</option>
+        </select>
+      </div>
+      <div class="field"><label>CA (Major Vessels)</label>
+        <select id="h-ca"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option></select>
+      </div>
+      <div class="field"><label>Thal</label>
+        <select id="h-thal">
+          <option value="0">0 – Normal</option>
+          <option value="1">1 – Fixed Defect</option>
+          <option value="2">2 – Reversible Defect</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+    </div>
+    <button class="predict-btn" onclick="predict('heart')">
+      <span class="btn-shine"></span>
+      <span class="btn-text">🔍 Predict Heart Risk</span>
+      <span class="spinner" id="spinner-heart"></span>
+    </button>
+    <div class="result-box" id="result-heart">
+      <div class="result-inner">
+        <div class="result-emoji" id="remoji-heart"></div>
+        <div>
+          <div class="result-label" id="rlabel-heart"></div>
+          <div class="result-sub" id="rsub-heart"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PARKINSONS FORM ===== -->
+  <div class="card" id="tab-parkinsons" style="display:none">
+    <div class="card-header">
+      <div class="card-icon icon-parkinsons">🧠</div>
+      <div>
+        <div class="card-title">Parkinson's Prediction</div>
+        <div class="card-subtitle">22 voice biomarker parameters required</div>
+      </div>
+    </div>
+    <div class="fields">
+      <div class="field"><label>MDVP:Fo(Hz)</label><input type="number" id="p-fo" placeholder="119.99" step="0.00001"/></div>
+      <div class="field"><label>MDVP:Fhi(Hz)</label><input type="number" id="p-fhi" placeholder="157.30" step="0.00001"/></div>
+      <div class="field"><label>MDVP:Flo(Hz)</label><input type="number" id="p-flo" placeholder="74.99" step="0.00001"/></div>
+      <div class="field"><label>MDVP:Jitter(%)</label><input type="number" id="p-jitter" placeholder="0.00784" step="0.00001"/></div>
+      <div class="field"><label>MDVP:Jitter(Abs)</label><input type="number" id="p-jitter_abs" placeholder="0.00007" step="0.00001"/></div>
+      <div class="field"><label>MDVP:RAP</label><input type="number" id="p-rap" placeholder="0.00370" step="0.00001"/></div>
+      <div class="field"><label>MDVP:PPQ</label><input type="number" id="p-ppq" placeholder="0.00554" step="0.00001"/></div>
+      <div class="field"><label>Jitter:DDP</label><input type="number" id="p-ddp" placeholder="0.01109" step="0.00001"/></div>
+      <div class="field"><label>MDVP:Shimmer</label><input type="number" id="p-shimmer" placeholder="0.04374" step="0.00001"/></div>
+      <div class="field"><label>MDVP:Shimmer(dB)</label><input type="number" id="p-shimmer_db" placeholder="0.426" step="0.00001"/></div>
+      <div class="field"><label>Shimmer:APQ3</label><input type="number" id="p-apq3" placeholder="0.02182" step="0.00001"/></div>
+      <div class="field"><label>Shimmer:APQ5</label><input type="number" id="p-apq5" placeholder="0.03130" step="0.00001"/></div>
+      <div class="field"><label>MDVP:APQ</label><input type="number" id="p-apq" placeholder="0.02971" step="0.00001"/></div>
+      <div class="field"><label>Shimmer:DDA</label><input type="number" id="p-dda" placeholder="0.06545" step="0.00001"/></div>
+      <div class="field"><label>NHR</label><input type="number" id="p-nhr" placeholder="0.02211" step="0.00001"/></div>
+      <div class="field"><label>HNR</label><input type="number" id="p-hnr" placeholder="21.033" step="0.00001"/></div>
+      <div class="field"><label>RPDE</label><input type="number" id="p-rpde" placeholder="0.414" step="0.00001"/></div>
+      <div class="field"><label>DFA</label><input type="number" id="p-dfa" placeholder="0.815" step="0.00001"/></div>
+      <div class="field"><label>spread1</label><input type="number" id="p-spread1" placeholder="-4.813" step="0.00001"/></div>
+      <div class="field"><label>spread2</label><input type="number" id="p-spread2" placeholder="0.266" step="0.00001"/></div>
+      <div class="field"><label>D2</label><input type="number" id="p-d2" placeholder="2.301" step="0.00001"/></div>
+      <div class="field"><label>PPE</label><input type="number" id="p-ppe" placeholder="0.284" step="0.00001"/></div>
+    </div>
+    <button class="predict-btn" onclick="predict('parkinsons')">
+      <span class="btn-shine"></span>
+      <span class="btn-text">🔍 Predict Parkinson's Risk</span>
+      <span class="spinner" id="spinner-parkinsons"></span>
+    </button>
+    <div class="result-box" id="result-parkinsons">
+      <div class="result-inner">
+        <div class="result-emoji" id="remoji-parkinsons"></div>
+        <div>
+          <div class="result-label" id="rlabel-parkinsons"></div>
+          <div class="result-sub" id="rsub-parkinsons"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="disclaimer">
+    ⚠️ This tool is for educational purposes only and does not replace professional medical advice.<br>
+    Always consult a qualified healthcare provider for diagnosis and treatment.
+  </p>
+</div>
+
+<script>
+/* ── Tab Switching ───────────────────────────── */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const t = btn.dataset.tab;
+    ['diabetes','heart','parkinsons'].forEach(name => {
+      document.getElementById('tab-'+name).style.display = name===t ? 'block' : 'none';
+    });
+  });
+});
+
+/* ── Prediction Logic ────────────────────────── */
+function val(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+async function predict(disease) {
+  const spinner = document.getElementById('spinner-'+disease);
+  const btnText = document.querySelector(`#tab-${disease} .btn-text`);
+  spinner.style.display = 'inline-block';
+  btnText.style.opacity = '0.5';
+
+  let endpoint = '/predict/' + disease;
+  let body = {};
+
+  if (disease === 'diabetes') {
+    body = {
+      pregnancies: val('d-pregnancies'), glucose: val('d-glucose'),
+      blood_pressure: val('d-bp'), skin_thickness: val('d-skin'),
+      insulin: val('d-insulin'), bmi: val('d-bmi'),
+      dpf: val('d-dpf'), age: val('d-age')
+    };
+  } else if (disease === 'heart') {
+    body = {
+      age: val('h-age'), sex: val('h-sex'), cp: val('h-cp'),
+      trestbps: val('h-trestbps'), chol: val('h-chol'), fbs: val('h-fbs'),
+      restecg: val('h-restecg'), thalach: val('h-thalach'), exang: val('h-exang'),
+      oldpeak: val('h-oldpeak'), slope: val('h-slope'), ca: val('h-ca'), thal: val('h-thal')
+    };
+  } else {
+    body = {
+      fo:val('p-fo'),fhi:val('p-fhi'),flo:val('p-flo'),
+      jitter:val('p-jitter'),jitter_abs:val('p-jitter_abs'),
+      rap:val('p-rap'),ppq:val('p-ppq'),ddp:val('p-ddp'),
+      shimmer:val('p-shimmer'),shimmer_db:val('p-shimmer_db'),
+      apq3:val('p-apq3'),apq5:val('p-apq5'),apq:val('p-apq'),dda:val('p-dda'),
+      nhr:val('p-nhr'),hnr:val('p-hnr'),rpde:val('p-rpde'),dfa:val('p-dfa'),
+      spread1:val('p-spread1'),spread2:val('p-spread2'),d2:val('p-d2'),ppe:val('p-ppe')
+    };
+  }
+
+  try {
+    const res  = await fetch(endpoint, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    showResult(disease, data);
+  } catch(e) {
+    showResult(disease, { status:'negative', label:'Connection Error', error: true });
+  } finally {
+    spinner.style.display = 'none';
+    btnText.style.opacity = '1';
+  }
+}
+
+function showResult(disease, data) {
+  const box   = document.getElementById('result-'+disease);
+  const emoji = document.getElementById('remoji-'+disease);
+  const label = document.getElementById('rlabel-'+disease);
+  const sub   = document.getElementById('rsub-'+disease);
+
+  box.className = 'result-box ' + data.status;
+  box.style.display = 'block';
+
+  if (data.status === 'positive') {
+    emoji.textContent = '⚠️';
+    label.textContent = data.label;
+    sub.textContent   = 'Please consult a medical professional immediately.';
+  } else {
+    emoji.textContent = '✅';
+    label.textContent = data.label;
+    sub.textContent   = 'Your parameters appear within healthy range.';
+  }
+}
+</script>
+</body>
+</html>
